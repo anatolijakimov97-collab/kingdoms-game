@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#17251d">
+<title>Королевства — прототип стратегии</title>
+<style>
+:root{--bg:#17251d;--panel:#23372a;--panel2:#304936;--gold:#e8c878;--text:#f5efd9;--muted:#c5cbb7;--border:#617653}
+*{box-sizing:border-box} body{margin:0;background:linear-gradient(#142219,#0d1711);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+header{padding:12px 14px 8px;background:#111d15;border-bottom:1px solid #42583f;position:sticky;top:0;z-index:4}
+h1{font-size:20px;margin:0;color:var(--gold);letter-spacing:.4px} .sub{font-size:12px;color:var(--muted);margin-top:3px}
+.stats{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.stat{background:#26392a;border:1px solid #455a40;border-radius:9px;padding:5px 8px;font-size:12px}
+main{padding:10px;max-width:900px;margin:auto}.layout{display:grid;grid-template-columns:1fr;gap:10px}
+.panel{background:linear-gradient(150deg,#293e2d,#1e3024);border:1px solid var(--border);border-radius:13px;padding:10px;box-shadow:0 4px 14px #0004}
+.panel h2{font-size:15px;margin:0 0 8px;color:var(--gold)}
+.map-wrap{overflow:hidden;border-radius:9px;border:1px solid #617653;background:#8c9c5c}
+#map{width:100%;display:block;touch-action:manipulation}
+.legend{display:flex;flex-wrap:wrap;gap:8px;font-size:11px;color:var(--muted);margin-top:8px}
+.actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+button{background:#465f3b;color:#fff5d8;border:1px solid #7f995c;border-radius:9px;padding:10px 8px;font-size:13px;font-weight:650;min-height:42px;cursor:pointer}
+button:active{transform:scale(.98);filter:brightness(1.15)}button:disabled{opacity:.4}
+button.primary{background:#876b2c;border-color:#c8a951;color:#fff7d8}
+.log{font-size:12px;line-height:1.45;color:#dbe3cd;max-height:145px;overflow:auto}
+.log p{margin:0 0 5px}.hint{font-size:12px;color:var(--muted);line-height:1.45}
+#toast{position:fixed;bottom:15px;left:50%;transform:translateX(-50%);background:#111d15;border:1px solid var(--gold);padding:10px 14px;border-radius:10px;z-index:10;display:none;max-width:90%;font-size:13px}
+.modal{position:fixed;inset:0;background:#000b;display:none;align-items:center;justify-content:center;padding:18px;z-index:9}
+.modal.show{display:flex}.modal-card{background:#24382a;border:1px solid #a18a4b;border-radius:16px;padding:18px;max-width:420px;width:100%;box-shadow:0 10px 40px #0009}
+.modal-card h2{color:var(--gold);margin:0 0 8px}.modal-card p{font-size:14px;line-height:1.5}.modal-actions{display:flex;gap:8px;flex-wrap:wrap}
+@media(min-width:700px){.layout{grid-template-columns:1.4fr 1fr}.map-panel{grid-row:span 2}.actions{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚔ КОРОЛЕВСТВА: ПЕРВЫЙ ПОХОД</h1>
+  <div class="sub">Мобильный прототип пошаговой фэнтези-стратегии</div>
+  <div class="stats">
+    <div class="stat">🪙 Золото: <b id="gold">500</b></div>
+    <div class="stat">🪵 Дерево: <b id="wood">8</b></div>
+    <div class="stat">🪨 Руда: <b id="ore">6</b></div>
+    <div class="stat">🛡 Армия: <b id="army">12</b></div>
+    <div class="stat">📅 День: <b id="day">1</b></div>
+  </div>
+</header>
+<main>
+<div class="layout">
+  <section class="panel map-panel">
+    <h2>🗺 Карта приграничья</h2>
+    <div class="map-wrap"><canvas id="map" width="720" height="540" aria-label="Игровая карта"></canvas></div>
+    <div class="legend"><span>🧙 Герой</span><span>🏰 Замок</span><span>🪙 Золото</span><span>🌲 Лес</span><span>💎 Артефакт</span><span>🐉 Дракон</span></div>
+    <p class="hint">Нажимай на соседнюю клетку, чтобы передвинуть героя. Собирай ресурсы и доберись до дракона. Клетки с препятствиями непроходимы.</p>
+  </section>
+  <section class="panel">
+    <h2>🏰 Замок Серебряный Щит</h2>
+    <p class="hint" id="castleText">Твои владения. Развивай армию и готовься к походу.</p>
+    <div class="actions">
+      <button id="recruit">Нанять 5 рыцарей<br>🪙 150</button>
+      <button id="sawmill">Построить лесопилку<br>🪙 120</button>
+      <button id="endturn" class="primary">Завершить ход ⏭</button>
+      <button id="reset">Начать заново ↻</button>
+    </div>
+  </section>
+  <section class="panel">
+    <h2>📜 Журнал похода</h2>
+    <div class="log" id="log"><p>День 1: королевский совет поручил тебе исследовать долину и очистить путь от дракона.</p></div>
+  </section>
+</div>
+</main>
+<div id="toast"></div>
+<div class="modal" id="modal"><div class="modal-card"><h2 id="modalTitle">Событие</h2><p id="modalText"></p><div class="modal-actions" id="modalActions"></div></div></div>
+<script>
+(() => {
+const canvas=document.getElementById('map'),ctx=canvas.getContext('2d');
+const W=12,H=9,CW=60,CH=60;
+const tiles=[
+['grass','grass','forest','grass','grass','mountain','mountain','grass','grass','grass','gold','grass'],
+['grass','rock','grass','grass','forest','grass','grass','grass','water','water','grass','grass'],
+['grass','grass','grass','gold','grass','grass','rock','grass','grass','grass','forest','grass'],
+['forest','forest','grass','grass','grass','water','water','grass','grass','rock','grass','grass'],
+['grass','grass','grass','rock','grass','grass','grass','grass','gold','grass','grass','grass'],
+['grass','castle','grass','grass','forest','grass','grass','artifact','grass','grass','rock','grass'],
+['grass','grass','gold','grass','grass','grass','rock','grass','grass','forest','grass','grass'],
+['grass','grass','grass','grass','water','water','grass','grass','dragon','grass','grass','grass'],
+['grass','forest','grass','grass','grass','grass','grass','grass','grass','grass','grass','grass']
+];
+let state;
+const emojis={grass:'',forest:'🌲',mountain:'⛰️',rock:'🪨',water:'🌊',gold:'🪙',castle:'🏰',artifact:'💎',dragon:'🐉'};
+function fresh(){return {x:1,y:5,gold:500,wood:8,ore:6,army:12,day:1,sawmill:false,visited:{},dragonDead:false,won:false,log:['День 1: королевский совет поручил тебе исследовать долину и очистить путь от дракона.']};}
+state=fresh();
+function log(msg){state.log.unshift(msg);state.log=state.log.slice(0,15);renderLog();}
+function renderLog(){document.getElementById('log').innerHTML=state.log.map(x=>'<p>• '+x.replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</p>').join('');}
+function stats(){for(const k of ['gold','wood','ore','army','day'])document.getElementById(k).textContent=state[k];document.getElementById('castleText').textContent=state.sawmill?'Лесопилка работает: в начале каждого дня приносит +2 дерева.':'Твои владения. Построй лесопилку, чтобы получать дерево каждый день.';}
+function draw(){
+ const dpr=Math.min(window.devicePixelRatio||1,2),rect=canvas.getBoundingClientRect();
+ canvas.width=720*dpr;canvas.height=540*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
+ const colors={grass:'#91a968',forest:'#54784c',mountain:'#8e8a77',rock:'#777c68',water:'#669ca1',gold:'#b7a75d',castle:'#c2a75d',artifact:'#8b9ac7',dragon:'#9b6959'};
+ for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+  const t=tiles[y][x],px=x*CW,py=y*CH;
+  ctx.fillStyle=colors[t]||colors.grass;ctx.fillRect(px,py,CW,CH);
+  ctx.strokeStyle='#344b35';ctx.lineWidth=1;ctx.strokeRect(px+.5,py+.5,CW,CH);
+  if(emojis[t]){ctx.font='27px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText((t==='dragon'&&state.dragonDead)?'✨':emojis[t],px+CW/2,py+CH/2);}
+  else {ctx.fillStyle='#a9bd7b';ctx.globalAlpha=.45;ctx.beginPath();ctx.arc(px+15,py+16,2,0,Math.PI*2);ctx.arc(px+43,py+41,2,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}
+ }
+ // hero
+ const px=state.x*CW,py=state.y*CH;
+ ctx.fillStyle='#f4d36f';ctx.beginPath();ctx.arc(px+30,py+30,20,0,Math.PI*2);ctx.fill();
+ ctx.strokeStyle='#fff3b1';ctx.lineWidth=3;ctx.stroke();
+ ctx.font='28px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('🧙',px+30,py+30);
+ if(state.won){ctx.fillStyle='#132016cc';ctx.fillRect(0,0,720,540);ctx.fillStyle='#fff0b0';ctx.font='bold 28px system-ui';ctx.fillText('ДОЛИНА СПАСЕНА!',360,260);}
+}
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.style.display='block';clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.style.display='none',2300);}
+function modal(title,text,buttons){document.getElementById('modalTitle').textContent=title;document.getElementById('modalText').textContent=text;const a=document.getElementById('modalActions');a.innerHTML='';buttons.forEach(b=>{const el=document.createElement('button');el.textContent=b.label;el.onclick=()=>{closeModal();b.fn();};a.appendChild(el)});document.getElementById('modal').classList.add('show');}
+function closeModal(){document.getElementById('modal').classList.remove('show');}
+function blocked(t){return ['water','mountain','rock'].includes(t);}
+function move(x,y){
+ if(state.won||Math.abs(x-state.x)+Math.abs(y-state.y)!==1)return;
+ if(x<0||x>=W||y<0||y>=H)return;
+ const t=tiles[y][x];if(blocked(t)){toast('Путь преграждён. Найди обход.');return;}
+ state.x=x;state.y=y;
+ if(t==='gold'&&!state.visited[x+','+y]){state.gold+=180;state.visited[x+','+y]=true;tiles[y][x]='grass';log('Найден тайник: +180 золота.');toast('Найдено 180 золота!');}
+ if(t==='forest'&&!state.visited[x+','+y]){state.wood+=2;state.visited[x+','+y]=true;log('Собраны припасы в лесу: +2 дерева.');}
+ if(t==='artifact'&&!state.visited[x+','+y]){state.visited[x+','+y]=true;state.army+=3;tiles[y][x]='grass';log('Найден древний амулет: армия получила +3 к силе.');modal('Древний амулет','Магия артефакта усиливает твои войска. Сила армии увеличена на 3.',[{label:'Продолжить',fn:()=>{}}]);}
+ if(t==='dragon'&&!state.dragonDead){
+  if(state.army>=20){modal('Битва с драконом','Твои войска достаточно сильны. Начать решающую битву?',[
+   {label:'Сразиться',fn:()=>{state.army-=8;state.dragonDead=true;state.won=true;state.gold+=500;log('Дракон повержен! Королевство наградило тебя 500 золотом.');stats();draw();modal('Победа!','Дракон повержен, долина спасена. Это конец первой демоверсии.',[{label:'Отлично',fn:()=>{}}]);}},
+   {label:'Отступить',fn:()=>{state.x=7;state.y=7;draw();}}
+  ]);}
+  else {state.army=Math.max(1,state.army-2);state.x=7;state.y=7;log('Дракон отбросил героя. Потеряно 2 отряда силы; найми больше рыцарей.');toast('Нужна армия не менее 20!');}
+ }
+ stats();draw();
+}
+canvas.addEventListener('click',e=>{const r=canvas.getBoundingClientRect();const x=Math.floor((e.clientX-r.left)/r.width*W),y=Math.floor((e.clientY-r.top)/r.height*H);move(x,y);});
+document.getElementById('recruit').onclick=()=>{if(state.gold<150){toast('Не хватает золота.');return;}state.gold-=150;state.army+=5;log('Наняты 5 рыцарей. Сила армии +5.');stats();draw();};
+document.getElementById('sawmill').onclick=()=>{if(state.sawmill){toast('Лесопилка уже построена.');return;}if(state.gold<120||state.wood<4){toast('Нужно 120 золота и 4 дерева.');return;}state.gold-=120;state.wood-=4;state.sawmill=true;log('Построена лесопилка. Теперь +2 дерева каждый день.');stats();};
+document.getElementById('endturn').onclick=()=>{state.day++;state.gold+=100;if(state.sawmill)state.wood+=2;log('Наступил день '+state.day+': казна принесла 100 золота'+(state.sawmill?', лесопилка дала 2 дерева.':'.'));stats();};
+document.getElementById('reset').onclick=()=>{state=fresh();for(let y=0;y<H;y++)for(let x=0;x<W;x++){if(['gold','artifact'].includes(tiles[y][x])){} }tiles[0][10]='gold';tiles[2][3]='gold';tiles[4][8]='gold';tiles[5][7]='artifact';tiles[7][8]='dragon';renderLog();stats();draw();toast('Новая партия началась.');};
+window.addEventListener('resize',draw);
+stats();renderLog();draw();
+})();
+</script>
+</body>
+</html>
